@@ -203,4 +203,78 @@ debug.get('/logs', async (c) => {
   }
 });
 
+// GET /debug/ws-test - Test WebSocket connection to the gateway
+debug.get('/ws-test', async (c) => {
+  const sandbox = c.get('sandbox');
+  const CLAWDBOT_PORT = 18789;
+  
+  // Create a test WebSocket request
+  const wsUrl = `ws://localhost:${CLAWDBOT_PORT}/`;
+  
+  return c.json({
+    message: 'WebSocket test endpoint',
+    wsUrl,
+    hint: 'Use browser devtools to connect to /chat and inspect WebSocket frames',
+    debug_info: {
+      sandbox_id: 'clawdbot',
+      port: CLAWDBOT_PORT,
+    }
+  });
+});
+
+// GET /debug/env - Show environment configuration (sanitized)
+debug.get('/env', async (c) => {
+  return c.json({
+    has_anthropic_key: !!c.env.ANTHROPIC_API_KEY,
+    has_openai_key: !!c.env.OPENAI_API_KEY,
+    has_gateway_token: !!c.env.CLAWDBOT_GATEWAY_TOKEN,
+    has_r2_access_key: !!c.env.R2_ACCESS_KEY_ID,
+    has_r2_secret_key: !!c.env.R2_SECRET_ACCESS_KEY,
+    has_cf_account_id: !!c.env.CF_ACCOUNT_ID,
+    dev_mode: c.env.DEV_MODE,
+    debug_routes: c.env.DEBUG_ROUTES,
+    bind_mode: c.env.CLAWDBOT_BIND_MODE,
+    cf_access_team_domain: c.env.CF_ACCESS_TEAM_DOMAIN,
+    has_cf_access_aud: !!c.env.CF_ACCESS_AUD,
+  });
+});
+
+// GET /debug/container-config - Read the clawdbot config from inside the container
+debug.get('/container-config', async (c) => {
+  const sandbox = c.get('sandbox');
+  
+  try {
+    const proc = await sandbox.startProcess('cat /root/.clawdbot/clawdbot.json');
+    
+    let attempts = 0;
+    while (attempts < 10) {
+      await new Promise(r => setTimeout(r, 200));
+      if (proc.status !== 'running') break;
+      attempts++;
+    }
+
+    const logs = await proc.getLogs();
+    const stdout = logs.stdout || '';
+    const stderr = logs.stderr || '';
+    
+    let config = null;
+    try {
+      config = JSON.parse(stdout);
+    } catch {
+      // Not valid JSON
+    }
+    
+    return c.json({
+      status: proc.status,
+      exitCode: proc.exitCode,
+      config,
+      raw: config ? undefined : stdout,
+      stderr,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 export { debug };
