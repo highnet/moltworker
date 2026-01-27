@@ -2,6 +2,18 @@
 
 Run [Moltbot](https://molt.bot/) personal AI assistant in a [Cloudflare Sandbox](https://developers.cloudflare.com/sandbox/).
 
+## What is Moltbot?
+
+[Moltbot](https://molt.bot/) is a personal AI assistant with a gateway architecture that connects to multiple chat platforms. Key features:
+
+- **Control UI** - Web-based chat interface at the gateway
+- **Multi-channel support** - Telegram, Discord, Slack
+- **Device pairing** - Secure DM authentication requiring explicit approval
+- **Persistent conversations** - Chat history and context across sessions
+- **Agent runtime** - Extensible AI capabilities with workspace and skills
+
+This project packages Moltbot to run in a [Cloudflare Sandbox](https://developers.cloudflare.com/sandbox/) container, providing a fully managed, always-on deployment without needing to self-host. Optional R2 storage enables persistence across container restarts.
+
 ## Architecture
 
 ```
@@ -341,6 +353,18 @@ npm run deploy
 | `SLACK_APP_TOKEN` | No | Slack app token |
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
+
+## Security Considerations
+
+### Authentication Layers
+
+Moltbot in Cloudflare Sandbox uses multiple authentication layers:
+
+1. **Cloudflare Access** - Protects admin routes (`/_admin/`, `/api/*`, `/debug/*`). Only authenticated users can manage devices.
+
+2. **Gateway Token** - Required to access the Control UI. Pass via `?token=` query parameter. Keep this secret.
+
+3. **Device Pairing** - Each device (browser, CLI, chat platform DM) must be explicitly approved via the admin UI before it can interact with the assistant. This is the default "pairing" DM policy.
 
 ## Troubleshooting
 
