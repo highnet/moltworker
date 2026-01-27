@@ -11,8 +11,11 @@ npm install
 # Set your Anthropic API key
 npx wrangler secret put ANTHROPIC_API_KEY
 
-# Set a gateway token (required for remote access)
-npx wrangler secret put CLAWDBOT_GATEWAY_TOKEN
+# Generate and set a gateway token (required for remote access)
+# Save this token - you'll need it to access the Control UI
+export CLAWDBOT_GATEWAY_TOKEN=$(openssl rand -base64 32 | tr -d '=+/' | head -c 32)
+echo "Your gateway token: $CLAWDBOT_GATEWAY_TOKEN"
+echo "$CLAWDBOT_GATEWAY_TOKEN" | npx wrangler secret put CLAWDBOT_GATEWAY_TOKEN
 
 # Deploy
 npm run deploy
@@ -21,10 +24,10 @@ npm run deploy
 After deploying, open the Control UI with your token:
 
 ```
-https://your-worker.workers.dev/?token=YOUR_TOKEN
+https://your-worker.workers.dev/?token=YOUR_GATEWAY_TOKEN
 ```
 
-Replace `your-worker` with your actual worker subdomain and `YOUR_TOKEN` with the token you set.
+Replace `your-worker` with your actual worker subdomain and `YOUR_GATEWAY_TOKEN` with the token you generated above.
 
 **Note:** The first request may take 1-2 minutes while the container starts.
 
