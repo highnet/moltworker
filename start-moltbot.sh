@@ -178,7 +178,7 @@ if (process.env.ANTHROPIC_BASE_URL) {
         api: 'anthropic-messages',
         models: [
             { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', contextWindow: 200000 },
-            { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', contextWindow: 200000 },
+            { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', contextWindow: 200000 },
             { id: 'claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', contextWindow: 200000 },
         ]
     };
