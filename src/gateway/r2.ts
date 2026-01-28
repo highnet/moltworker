@@ -1,13 +1,16 @@
 import type { Sandbox } from '@cloudflare/sandbox';
 import type { MoltbotEnv } from '../types';
-import { R2_MOUNT_PATH, R2_BUCKET_NAME } from '../config';
+import { R2_MOUNT_PATH } from '../config';
 
 /**
- * Check if R2 is already mounted by looking at the mount table
+ * Check if R2 is mounted via tigrisfs FUSE
+ * 
+ * With the FUSE approach, R2 is mounted by the container startup script.
+ * This function just checks if the mount is active.
  */
-async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
+export async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
   try {
-    const proc = await sandbox.startProcess(`mount | grep "s3fs on ${R2_MOUNT_PATH}"`);
+    const proc = await sandbox.startProcess(`mount | grep "tigrisfs on ${R2_MOUNT_PATH}"`);
     // Wait for the command to complete
     let attempts = 0;
     while (proc.status === 'running' && attempts < 10) {
@@ -16,7 +19,7 @@ async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
     }
     const logs = await proc.getLogs();
     // If stdout has content, the mount exists
-    const mounted = !!(logs.stdout && logs.stdout.includes('s3fs'));
+    const mounted = !!(logs.stdout && logs.stdout.includes('tigrisfs'));
     console.log('isR2Mounted check:', mounted, 'stdout:', logs.stdout?.slice(0, 100));
     return mounted;
   } catch (err) {
@@ -26,11 +29,14 @@ async function isR2Mounted(sandbox: Sandbox): Promise<boolean> {
 }
 
 /**
- * Mount R2 bucket for persistent storage
+ * Check R2 storage configuration and mount status
+ * 
+ * With FUSE approach, the container mounts R2 at startup via tigrisfs.
+ * The Worker passes credentials as environment variables to the container.
  * 
  * @param sandbox - The sandbox instance
  * @param env - Worker environment bindings
- * @returns true if mounted successfully, false otherwise
+ * @returns true if R2 is configured and mounted, false otherwise
  */
 export async function mountR2Storage(sandbox: Sandbox, env: MoltbotEnv): Promise<boolean> {
   // Skip if R2 credentials are not configured
@@ -39,36 +45,15 @@ export async function mountR2Storage(sandbox: Sandbox, env: MoltbotEnv): Promise
     return false;
   }
 
-  // Check if already mounted first - this avoids errors and is faster
-  if (await isR2Mounted(sandbox)) {
-    console.log('R2 bucket already mounted at', R2_MOUNT_PATH);
+  // Check if mounted - with FUSE approach, container handles mounting
+  const mounted = await isR2Mounted(sandbox);
+  if (mounted) {
+    console.log('R2 FUSE mount active at', R2_MOUNT_PATH);
     return true;
   }
 
-  try {
-    console.log('Mounting R2 bucket at', R2_MOUNT_PATH);
-    await sandbox.mountBucket(R2_BUCKET_NAME, R2_MOUNT_PATH, {
-      endpoint: `https://${env.CF_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      // Pass credentials explicitly since we use R2_* naming instead of AWS_*
-      credentials: {
-        accessKeyId: env.R2_ACCESS_KEY_ID,
-        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-      },
-    });
-    console.log('R2 bucket mounted successfully - moltbot data will persist across sessions');
-    return true;
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.log('R2 mount error:', errorMessage);
-    
-    // Check again if it's mounted - the error might be misleading
-    if (await isR2Mounted(sandbox)) {
-      console.log('R2 bucket is mounted despite error');
-      return true;
-    }
-    
-    // Don't fail if mounting fails - moltbot can still run without persistent storage
-    console.error('Failed to mount R2 bucket:', err);
-    return false;
-  }
+  // Not mounted - this is expected if container just started
+  // The container startup script will mount it
+  console.log('R2 FUSE mount not yet active - container may be starting');
+  return false;
 }

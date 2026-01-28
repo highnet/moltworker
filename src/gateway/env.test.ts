@@ -3,10 +3,11 @@ import { buildEnvVars } from './env';
 import { createMockEnv } from '../test-utils';
 
 describe('buildEnvVars', () => {
-  it('returns empty object when no env vars set', () => {
+  it('always includes R2_BUCKET_NAME', () => {
     const env = createMockEnv();
     const result = buildEnvVars(env);
-    expect(result).toEqual({});
+    // R2_BUCKET_NAME is always set for FUSE mounting
+    expect(result.R2_BUCKET_NAME).toBe('moltbot-data');
   });
 
   it('includes ANTHROPIC_API_KEY when set directly', () => {
@@ -104,6 +105,21 @@ describe('buildEnvVars', () => {
       ANTHROPIC_API_KEY: 'sk-key',
       CLAWDBOT_GATEWAY_TOKEN: 'token',
       TELEGRAM_BOT_TOKEN: 'tg',
+      R2_BUCKET_NAME: 'moltbot-data',
     });
+  });
+
+  it('maps R2 credentials to AWS_* for tigrisfs', () => {
+    const env = createMockEnv({
+      R2_ACCESS_KEY_ID: 'r2-key',
+      R2_SECRET_ACCESS_KEY: 'r2-secret',
+      CF_ACCOUNT_ID: 'account-123',
+    });
+    const result = buildEnvVars(env);
+    
+    expect(result.AWS_ACCESS_KEY_ID).toBe('r2-key');
+    expect(result.AWS_SECRET_ACCESS_KEY).toBe('r2-secret');
+    expect(result.R2_ACCOUNT_ID).toBe('account-123');
+    expect(result.R2_BUCKET_NAME).toBe('moltbot-data');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mountR2Storage } from './r2';
+import { mountR2Storage, isR2Mounted } from './r2';
 import { 
   createMockEnv, 
   createMockEnvWithR2, 
@@ -63,90 +63,69 @@ describe('mountR2Storage', () => {
     });
   });
 
-  describe('mounting behavior', () => {
-    it('mounts R2 bucket when credentials provided and not already mounted', async () => {
-      const { sandbox, mountBucketMock } = createMockSandbox({ mounted: false });
-      const env = createMockEnvWithR2({
-        R2_ACCESS_KEY_ID: 'key123',
-        R2_SECRET_ACCESS_KEY: 'secret',
-        CF_ACCOUNT_ID: 'account123',
-      });
-
-      const result = await mountR2Storage(sandbox, env);
-
-      expect(result).toBe(true);
-      expect(mountBucketMock).toHaveBeenCalledWith(
-        'moltbot-data',
-        '/data/moltbot',
-        {
-          endpoint: 'https://account123.r2.cloudflarestorage.com',
-          credentials: {
-            accessKeyId: 'key123',
-            secretAccessKey: 'secret',
-          },
-        }
+  describe('FUSE mount status checks', () => {
+    it('returns true when tigrisfs mount is detected', async () => {
+      const { sandbox, startProcessMock } = createMockSandbox();
+      startProcessMock.mockResolvedValue(
+        createMockProcess('tigrisfs on /data/moltbot type fuse (rw,nosuid,nodev)\n')
       );
-    });
-
-    it('returns true immediately when bucket is already mounted', async () => {
-      const { sandbox, mountBucketMock } = createMockSandbox({ mounted: true });
       const env = createMockEnvWithR2();
 
       const result = await mountR2Storage(sandbox, env);
 
       expect(result).toBe(true);
-      expect(mountBucketMock).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
-        'R2 bucket already mounted at',
+        'R2 FUSE mount active at',
         '/data/moltbot'
       );
     });
 
-    it('logs success message when mounted successfully', async () => {
-      const { sandbox } = createMockSandbox({ mounted: false });
-      const env = createMockEnvWithR2();
-
-      await mountR2Storage(sandbox, env);
-
-      expect(console.log).toHaveBeenCalledWith(
-        'R2 bucket mounted successfully - moltbot data will persist across sessions'
-      );
-    });
-  });
-
-  describe('error handling', () => {
-    it('returns false when mountBucket throws and mount check fails', async () => {
-      const { sandbox, mountBucketMock, startProcessMock } = createMockSandbox({ mounted: false });
-      mountBucketMock.mockRejectedValue(new Error('Mount failed'));
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess(''))
-        .mockResolvedValueOnce(createMockProcess(''));
-      
+    it('returns false when tigrisfs mount is not detected', async () => {
+      const { sandbox, startProcessMock } = createMockSandbox();
+      startProcessMock.mockResolvedValue(createMockProcess(''));
       const env = createMockEnvWithR2();
 
       const result = await mountR2Storage(sandbox, env);
 
       expect(result).toBe(false);
-      expect(console.error).toHaveBeenCalledWith(
-        'Failed to mount R2 bucket:',
-        expect.any(Error)
+      expect(console.log).toHaveBeenCalledWith(
+        'R2 FUSE mount not yet active - container may be starting'
       );
     });
+  });
+});
 
-    it('returns true if mount fails but check shows it is actually mounted', async () => {
-      const { sandbox, mountBucketMock, startProcessMock } = createMockSandbox();
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess(''))
-        .mockResolvedValueOnce(createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n'));
-      
-      mountBucketMock.mockRejectedValue(new Error('Transient error'));
-      
-      const env = createMockEnvWithR2();
+describe('isR2Mounted', () => {
+  beforeEach(() => {
+    suppressConsole();
+  });
 
-      const result = await mountR2Storage(sandbox, env);
+  it('returns true when tigrisfs is in mount output', async () => {
+    const { sandbox, startProcessMock } = createMockSandbox();
+    startProcessMock.mockResolvedValue(
+      createMockProcess('tigrisfs on /data/moltbot type fuse (rw,nosuid,nodev)\n')
+    );
 
-      expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith('R2 bucket is mounted despite error');
-    });
+    const result = await isR2Mounted(sandbox);
+
+    expect(result).toBe(true);
+  });
+
+  it('returns false when tigrisfs is not in mount output', async () => {
+    const { sandbox, startProcessMock } = createMockSandbox();
+    startProcessMock.mockResolvedValue(createMockProcess(''));
+
+    const result = await isR2Mounted(sandbox);
+
+    expect(result).toBe(false);
+  });
+
+  it('returns false when process throws an error', async () => {
+    const { sandbox, startProcessMock } = createMockSandbox();
+    startProcessMock.mockRejectedValue(new Error('Process failed'));
+
+    const result = await isR2Mounted(sandbox);
+
+    expect(result).toBe(false);
   });
 });

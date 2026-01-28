@@ -1,4 +1,5 @@
 import type { MoltbotEnv } from '../types';
+import { R2_BUCKET_NAME } from '../config';
 
 /**
  * Build environment variables to pass to the Moltbot container process
@@ -36,6 +37,12 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.SLACK_APP_TOKEN) envVars.SLACK_APP_TOKEN = env.SLACK_APP_TOKEN;
   if (env.CDP_SECRET) envVars.CDP_SECRET = env.CDP_SECRET;
   if (env.WORKER_URL) envVars.WORKER_URL = env.WORKER_URL;
+
+  // R2 FUSE mount credentials (tigrisfs uses AWS_* env vars)
+  if (env.R2_ACCESS_KEY_ID) envVars.AWS_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID;
+  if (env.R2_SECRET_ACCESS_KEY) envVars.AWS_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY;
+  if (env.CF_ACCOUNT_ID) envVars.R2_ACCOUNT_ID = env.CF_ACCOUNT_ID;
+  envVars.R2_BUCKET_NAME = R2_BUCKET_NAME;
 
   return envVars;
 }

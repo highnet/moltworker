@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { syncToR2 } from './sync';
 import { 
   createMockEnv, 
@@ -24,97 +24,78 @@ describe('syncToR2', () => {
       expect(result.error).toBe('R2 storage is not configured');
     });
 
-    it('returns error when mount fails', async () => {
-      const { sandbox, startProcessMock, mountBucketMock } = createMockSandbox();
-      startProcessMock.mockResolvedValue(createMockProcess(''));
-      mountBucketMock.mockRejectedValue(new Error('Mount failed'));
-      
-      const env = createMockEnvWithR2();
+    it('returns error when R2_ACCESS_KEY_ID is missing', async () => {
+      const { sandbox } = createMockSandbox();
+      const env = {
+        ...createMockEnv(),
+        R2_SECRET_ACCESS_KEY: 'secret',
+        CF_ACCOUNT_ID: 'account',
+      };
 
       const result = await syncToR2(sandbox, env);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Failed to mount R2 storage');
+      expect(result.error).toBe('R2 storage is not configured');
     });
   });
 
-  describe('sanity checks', () => {
-    it('returns error when source is missing clawdbot.json', async () => {
+  describe('FUSE mount status', () => {
+    it('returns success when tigrisfs mount is active', async () => {
       const { sandbox, startProcessMock } = createMockSandbox();
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n'))
-        .mockResolvedValueOnce(createMockProcess('')); // No "ok" output
-      
-      const env = createMockEnvWithR2();
-
-      const result = await syncToR2(sandbox, env);
-
-      // Error message still references clawdbot.json since that's the actual file name
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Sync aborted: source missing clawdbot.json');
-      expect(result.details).toContain('missing critical files');
-    });
-  });
-
-  describe('sync execution', () => {
-    it('returns success when sync completes', async () => {
-      const { sandbox, startProcessMock } = createMockSandbox();
-      const timestamp = '2026-01-27T12:00:00+00:00';
-      
-      // Calls: mount check, sanity check, rsync, cat timestamp
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n'))
-        .mockResolvedValueOnce(createMockProcess('ok'))
-        .mockResolvedValueOnce(createMockProcess(''))
-        .mockResolvedValueOnce(createMockProcess(timestamp));
+      startProcessMock.mockResolvedValueOnce(
+        createMockProcess('tigrisfs on /data/moltbot type fuse.tigrisfs\n')
+      );
       
       const env = createMockEnvWithR2();
 
       const result = await syncToR2(sandbox, env);
 
       expect(result.success).toBe(true);
-      expect(result.lastSync).toBe(timestamp);
+      expect(result.lastSync).toBe('live (FUSE mount active)');
+      expect(result.details).toContain('FUSE mount');
     });
 
-    it('returns error when rsync fails (no timestamp created)', async () => {
+    it('returns error when FUSE mount is not active', async () => {
       const { sandbox, startProcessMock } = createMockSandbox();
-      
-      // Calls: mount check, sanity check, rsync (fails), cat timestamp (empty)
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n'))
-        .mockResolvedValueOnce(createMockProcess('ok'))
-        .mockResolvedValueOnce(createMockProcess('', { exitCode: 1 }))
-        .mockResolvedValueOnce(createMockProcess(''));
+      // grep returns empty when mount not found
+      startProcessMock.mockResolvedValueOnce(createMockProcess(''));
       
       const env = createMockEnvWithR2();
 
       const result = await syncToR2(sandbox, env);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Sync failed');
+      expect(result.error).toBe('R2 FUSE mount not active');
+      expect(result.details).toContain('restart');
     });
 
-    it('verifies rsync command is called with correct flags', async () => {
+    it('returns error when mount check command fails', async () => {
       const { sandbox, startProcessMock } = createMockSandbox();
-      const timestamp = '2026-01-27T12:00:00+00:00';
-      
-      startProcessMock
-        .mockResolvedValueOnce(createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n'))
-        .mockResolvedValueOnce(createMockProcess('ok'))
-        .mockResolvedValueOnce(createMockProcess(''))
-        .mockResolvedValueOnce(createMockProcess(timestamp));
+      startProcessMock.mockRejectedValueOnce(new Error('Command failed'));
       
       const env = createMockEnvWithR2();
 
-      await syncToR2(sandbox, env);
+      const result = await syncToR2(sandbox, env);
 
-      // Third call should be rsync (paths still use clawdbot internally)
-      const rsyncCall = startProcessMock.mock.calls[2][0];
-      expect(rsyncCall).toContain('rsync');
-      expect(rsyncCall).toContain('--no-times');
-      expect(rsyncCall).toContain('--delete');
-      expect(rsyncCall).toContain('/root/.clawdbot/');
-      expect(rsyncCall).toContain('/data/moltbot/');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to check mount status');
+      expect(result.details).toBe('Command failed');
+    });
+
+    it('checks for tigrisfs specifically in mount output', async () => {
+      const { sandbox, startProcessMock } = createMockSandbox();
+      // Some other mount type, not tigrisfs
+      startProcessMock.mockResolvedValueOnce(
+        createMockProcess('s3fs on /data/moltbot type fuse.s3fs\n')
+      );
+      
+      const env = createMockEnvWithR2();
+
+      const result = await syncToR2(sandbox, env);
+
+      // s3fs is not tigrisfs, should fail
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('R2 FUSE mount not active');
     });
   });
 });
