@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv, MoltbotEnv } from '../types';
 import { findExistingMoltbotProcess } from '../gateway';
 import { buildEnvVars } from '../gateway/env';
+import { waitForProcess } from '../gateway';
 
 /**
  * Debug routes for inspecting container state
@@ -431,4 +432,44 @@ debug.get('/start-gateway', async (c) => {
   }
 });
 
+// GET /debug/security-audit - Run security audit
+debug.get('/security-audit', async (c) => {
+  const sandbox = c.get('sandbox');
+  const deep = c.req.query('deep') === 'true';
+  
+  try {
+    // Ensure gateway is running
+    const gateway = await findExistingMoltbotProcess(sandbox);
+    if (!gateway) {
+      return c.json({ error: 'Moltbot gateway not running' }, 503);
+    }
+
+    // Run security audit command
+    const auditCommand = deep 
+      ? 'clawdbot security audit --deep --url ws://localhost:18789'
+      : 'clawdbot security audit --url ws://localhost:18789';
+    
+    console.log(`[DEBUG] Running security audit: ${auditCommand}`);
+    const proc = await sandbox.startProcess(auditCommand);
+    
+    // Security audit can take longer, use 60 second timeout
+    await waitForProcess(proc, 60000);
+    
+    const logs = await proc.getLogs();
+    
+    return c.json({
+      command: auditCommand,
+      exitCode: proc.exitCode,
+      stdout: logs.stdout || '',
+      stderr: logs.stderr || '',
+      status: proc.status
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[DEBUG] Security audit failed:', errorMessage);
+    return c.json({ error: `Security audit failed: ${errorMessage}` }, 500);
+  }
+});
+
 export { debug };
+export default debug;
