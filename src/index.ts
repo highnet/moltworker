@@ -441,4 +441,18 @@ app.all('*', async (c) => {
 
 export default {
   fetch: app.fetch,
+  // Cron job: keep the sandbox container warm so the gateway never goes cold
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const sandbox = getSandbox(env.Sandbox, 'moltbot', buildSandboxOptions(env));
+          await ensureMoltbotGateway(sandbox, env);
+          console.log('[CRON] keep-alive succeeded');
+        } catch (error) {
+          console.error('[CRON] keep-alive failed:', error);
+        }
+      })(),
+    );
+  },
 };
