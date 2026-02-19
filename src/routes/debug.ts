@@ -397,7 +397,7 @@ debug.get('/start-gateway', async (c) => {
     const envVars = buildEnvVars(env);
     
     // Start the gateway script with proper env vars
-    const proc = await sandbox.startProcess('/usr/local/bin/start-moltbot.sh', {
+    const proc = await sandbox.startProcess('/usr/local/bin/start-openclaw.sh', {
       env: Object.keys(envVars).length > 0 ? envVars : undefined,
     });
     
@@ -413,7 +413,7 @@ debug.get('/start-gateway', async (c) => {
 
     const logs = await proc.getLogs();
     return c.json({
-      command: '/usr/local/bin/start-moltbot.sh',
+      command: '/usr/local/bin/start-openclaw.sh',
       status: proc.status,
       exitCode: proc.exitCode,
       attempts,

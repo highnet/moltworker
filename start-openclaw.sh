@@ -114,18 +114,36 @@ if [ ! -f "$CONFIG_FILE" ]; then
         AUTH_ARGS="--auth-choice apiKey --anthropic-api-key $ANTHROPIC_API_KEY"
     elif [ -n "$OPENAI_API_KEY" ]; then
         AUTH_ARGS="--auth-choice openai-api-key --openai-api-key $OPENAI_API_KEY"
+    elif [ -n "$MOONSHOT_API_KEY" ]; then
+        # Moonshot is not an openclaw onboard auth-choice — create a minimal
+        # skeleton config so onboard is skipped; the patch block below will
+        # inject the full Moonshot provider configuration.
+        echo "Moonshot-only config: creating minimal skeleton, skipping onboard"
+        cat > "$CONFIG_FILE" << 'EOFCONFIG'
+{
+  "gateway": {
+    "port": 18789,
+    "mode": "local"
+  },
+  "models": {},
+  "agents": {},
+  "channels": {}
+}
+EOFCONFIG
     fi
 
-    openclaw onboard --non-interactive --accept-risk \
-        --mode local \
-        $AUTH_ARGS \
-        --gateway-port 18789 \
-        --gateway-bind lan \
-        --skip-channels \
-        --skip-skills \
-        --skip-health
+    if [ ! -f "$CONFIG_FILE" ]; then
+        openclaw onboard --non-interactive --accept-risk \
+            --mode local \
+            $AUTH_ARGS \
+            --gateway-port 18789 \
+            --gateway-bind lan \
+            --skip-channels \
+            --skip-skills \
+            --skip-health
 
-    echo "Onboard completed"
+        echo "Onboard completed"
+    fi
 else
     echo "Using existing config"
 fi
@@ -217,6 +235,27 @@ if (process.env.CF_AI_GATEWAY_MODEL) {
     } else {
         console.warn('CF_AI_GATEWAY_MODEL set but missing required config (account ID, gateway ID, or API key)');
     }
+}
+
+// Moonshot configuration
+if (process.env.MOONSHOT_API_KEY) {
+    console.log('Configuring Moonshot provider with API key');
+    config.models = config.models || {};
+    config.models.providers = config.models.providers || {};
+    config.models.providers.moonshot = config.models.providers.moonshot || {};
+    // Moonshot is OpenAI-compatible — tell OpenClaw to use openai-completions format
+    config.models.providers.moonshot.api = 'openai-completions';
+    config.models.providers.moonshot.baseUrl = 'https://api.moonshot.ai/v1';
+    config.models.providers.moonshot.apiKey = process.env.MOONSHOT_API_KEY;
+    config.models.providers.moonshot.models = config.models.providers.moonshot.models || [
+        { id: 'kimi-k2-0711-preview', name: 'Kimi K2', contextWindow: 131072, maxTokens: 65536 },
+    ];
+    config.agents = config.agents || {};
+    config.agents.defaults = config.agents.defaults || {};
+    config.agents.defaults.model = { primary: 'moonshot/kimi-k2-0711-preview' };
+    config.agents.defaults.models = config.agents.defaults.models || {};
+    config.agents.defaults.models['moonshot/kimi-k2-0711-preview'] = { alias: 'Kimi K2' };
+    console.log('Moonshot configured as primary provider');
 }
 
 // Telegram configuration

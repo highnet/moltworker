@@ -72,15 +72,23 @@ function validateRequiredEnv(env: MoltbotEnv): string[] {
     }
   }
 
-  // Check for AI Gateway or direct provider configuration
-  if (env.AI_GATEWAY_API_KEY) {
-    // AI Gateway requires both API key and base URL
-    if (!env.AI_GATEWAY_BASE_URL) {
-      missing.push('AI_GATEWAY_BASE_URL (required when using AI_GATEWAY_API_KEY)');
-    }
-  } else if (!env.ANTHROPIC_API_KEY && !env.MOONSHOT_API_KEY) {
-    // Direct provider access requires at least one API key
-    missing.push('ANTHROPIC_API_KEY, MOONSHOT_API_KEY, or AI_GATEWAY_API_KEY');
+  // Check for AI provider configuration (at least one must be set)
+  const hasCloudflareGateway = !!(
+    env.CLOUDFLARE_AI_GATEWAY_API_KEY &&
+    env.CF_AI_GATEWAY_ACCOUNT_ID &&
+    env.CF_AI_GATEWAY_GATEWAY_ID
+  );
+  const hasLegacyGateway = !!(env.AI_GATEWAY_API_KEY && env.AI_GATEWAY_BASE_URL);
+  const hasDirectKey = !!(
+    env.ANTHROPIC_API_KEY ||
+    env.OPENAI_API_KEY ||
+    env.MOONSHOT_API_KEY
+  );
+
+  if (!hasCloudflareGateway && !hasLegacyGateway && !hasDirectKey) {
+    missing.push(
+      'MOONSHOT_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or CLOUDFLARE_AI_GATEWAY_API_KEY + CF_AI_GATEWAY_ACCOUNT_ID + CF_AI_GATEWAY_GATEWAY_ID',
+    );
   }
 
   return missing;

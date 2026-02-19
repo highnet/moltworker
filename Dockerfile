@@ -32,12 +32,9 @@ RUN mkdir -p /root/.openclaw \
     && mkdir -p /root/clawd/skills
 
 # Copy startup script
-# Build cache bust: 2026-02-02-v35-no-api-field
-COPY start-moltbot.sh /usr/local/bin/start-moltbot.sh
-RUN chmod +x /usr/local/bin/start-moltbot.sh
-
-# Copy default configuration template
-COPY moltbot.json.template /root/.clawdbot-templates/moltbot.json.template
+# Build cache bust: 2026-02-19-v38-moonshot-onboard
+COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
+RUN chmod +x /usr/local/bin/start-openclaw.sh
 
 # Copy custom skills
 COPY skills/ /root/clawd/skills/
