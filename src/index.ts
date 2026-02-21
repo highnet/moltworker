@@ -450,7 +450,11 @@ app.all('*', async (c) => {
 export default {
   fetch: app.fetch,
   // Cron job: keep the sandbox container warm so the gateway never goes cold
-  async scheduled(_event, env, ctx) {
+  async scheduled(
+    _event: ScheduledEvent,
+    env: MoltbotEnv,
+    ctx: ExecutionContext,
+  ): Promise<void> {
     ctx.waitUntil(
       (async () => {
         try {

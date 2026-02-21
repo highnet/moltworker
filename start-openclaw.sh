@@ -248,14 +248,14 @@ if (process.env.MOONSHOT_API_KEY) {
     config.models.providers.moonshot.baseUrl = 'https://api.moonshot.ai/v1';
     config.models.providers.moonshot.apiKey = process.env.MOONSHOT_API_KEY;
     config.models.providers.moonshot.models = config.models.providers.moonshot.models || [
-        { id: 'kimi-k2-0711-preview', name: 'Kimi K2', contextWindow: 131072, maxTokens: 65536 },
+        { id: 'kimi-k2.5', name: 'Kimi K2.5', contextWindow: 200000, maxTokens: 65536 },
     ];
     config.agents = config.agents || {};
     config.agents.defaults = config.agents.defaults || {};
-    config.agents.defaults.model = { primary: 'moonshot/kimi-k2-0711-preview' };
+    config.agents.defaults.model = { primary: 'moonshot/kimi-k2.5' };
     config.agents.defaults.models = config.agents.defaults.models || {};
-    config.agents.defaults.models['moonshot/kimi-k2-0711-preview'] = { alias: 'Kimi K2' };
-    console.log('Moonshot configured as primary provider');
+    config.agents.defaults.models['moonshot/kimi-k2.5'] = { alias: 'Kimi K2.5' };
+    console.log('Moonshot configured as primary provider (Kimi K2.5)');
 }
 
 // Telegram configuration

@@ -11,7 +11,10 @@ Run [OpenClaw](https://github.com/openclaw/openclaw) (formerly Moltbot, formerly
 ## Requirements
 
 - [Workers Paid plan](https://www.cloudflare.com/plans/developer-platform/) ($5 USD/month) — required for Cloudflare Sandbox containers
-- [Anthropic API key](https://console.anthropic.com/) — for Claude access, or you can use AI Gateway's [Unified Billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/)
+- AI Provider API key:
+  - [Anthropic API key](https://console.anthropic.com/) — for Claude access
+  - OR [Moonshot API key](https://platform.moonshot.cn) — for Kimi k2.5 (budget-friendly alternative)
+  - OR use AI Gateway's [Unified Billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/)
 
 The following Cloudflare features used by this project have free tiers:
 - Cloudflare Access (authentication)
@@ -62,10 +65,14 @@ _Cloudflare Sandboxes are available on the [Workers Paid plan](https://dash.clou
 # Install dependencies
 npm install
 
-# Set your API key (direct Anthropic access)
+# Set your AI provider API key:
+# Option 1: Anthropic (Claude)
 npx wrangler secret put ANTHROPIC_API_KEY
 
-# Or use Cloudflare AI Gateway instead (see "Optional: Cloudflare AI Gateway" below)
+# Option 2: Moonshot (Kimi k2.5) - Budget-friendly alternative
+# npx wrangler secret put MOONSHOT_API_KEY
+
+# Option 3: Cloudflare AI Gateway (see "Optional: Cloudflare AI Gateway" below)
 # npx wrangler secret put CLOUDFLARE_AI_GATEWAY_API_KEY
 # npx wrangler secret put CF_AI_GATEWAY_ACCOUNT_ID
 # npx wrangler secret put CF_AI_GATEWAY_GATEWAY_ID
@@ -419,6 +426,7 @@ The previous `AI_GATEWAY_API_KEY` + `AI_GATEWAY_BASE_URL` approach is still supp
 | `ANTHROPIC_API_KEY` | Yes* | Direct Anthropic API key (alternative to AI Gateway) |
 | `ANTHROPIC_BASE_URL` | No | Direct Anthropic API base URL |
 | `OPENAI_API_KEY` | No | OpenAI API key (alternative provider) |
+| `MOONSHOT_API_KEY` | No | Moonshot API key for Kimi k2.5 (budget-friendly alternative) |
 | `AI_GATEWAY_API_KEY` | No | Legacy AI Gateway API key (deprecated, use `CLOUDFLARE_AI_GATEWAY_API_KEY` instead) |
 | `AI_GATEWAY_BASE_URL` | No | Legacy AI Gateway endpoint URL (deprecated) |
 | `CF_ACCESS_TEAM_DOMAIN` | Yes* | Cloudflare Access team domain (required for admin UI) |
