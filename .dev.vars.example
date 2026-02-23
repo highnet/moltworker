@@ -4,6 +4,8 @@
 # AI Provider (at least one required)
 ANTHROPIC_API_KEY=sk-ant-...
 # OPENAI_API_KEY=sk-...
+# Moonshot (Kimi k2.5) API key
+MOONSHOT_API_KEY=your-moonshot-api-key
 
 # Cloudflare AI Gateway (alternative to direct provider keys)
 # CLOUDFLARE_AI_GATEWAY_API_KEY=your-provider-api-key
